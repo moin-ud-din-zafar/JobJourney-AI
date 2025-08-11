@@ -1,0 +1,133 @@
+import React, { useRef } from 'react'
+import { User, UploadCloud, Briefcase, FileText, Settings, LogOut } from 'lucide-react'
+import { useDarkTheme } from '../DarkThemeContext'
+import { useNavigate } from 'react-router-dom'
+
+export default function ProfileMenu({
+  user = {},
+  onClose = () => {},
+  onNavigate = null,
+  onSignOut = () => {},
+  onUpload = null,
+}) {
+  const { isDark } = useDarkTheme()
+  const fileInputRef = useRef(null)
+  const navigate = useNavigate()
+
+  const panelBg = isDark ? 'bg-slate-800 border-slate-700 text-gray-100' : 'bg-white border-gray-100 text-gray-900'
+  const itemHover = isDark ? 'hover:bg-slate-900' : 'hover:bg-gray-50'
+  const iconDefault = isDark ? 'text-gray-300' : 'text-gray-600'
+  const textDefault = isDark ? 'text-gray-100' : 'text-gray-900'
+  const subText = isDark ? 'text-gray-300' : 'text-gray-500'
+
+  const fullName = user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : (user.name || 'John Peterson')
+
+  const go = (id) => {
+    onClose()
+    if (typeof onNavigate === 'function') {
+      onNavigate(id === 'profile' ? '' : id)
+      return
+    }
+
+    if (id === 'profile') {
+      navigate('/profile')
+    } else {
+      navigate(`/profile?section=${encodeURIComponent(id)}`)
+    }
+  }
+
+  const handleUploadClick = () => {
+    if (fileInputRef.current) fileInputRef.current.click()
+  }
+
+  const handleFile = (e) => {
+    const f = e.target.files?.[0]
+    if (!f) return
+    if (typeof onUpload === 'function') {
+      onUpload(f)
+      onClose()
+      return
+    }
+    onClose()
+    if (typeof onNavigate === 'function') onNavigate('upload')
+    else navigate('/profile?section=upload')
+  }
+
+  return (
+    <div role="menu" aria-label="Profile menu" className={`w-72 rounded-lg shadow-lg overflow-hidden border ${panelBg}`}>
+      <div className="px-4 py-3">
+        <div className={`text-sm font-semibold ${textDefault}`}>{fullName}</div>
+        <div className={`text-xs ${subText} mt-0.5`}>{user.email || 'john.peterson@email.com'}</div>
+      </div>
+
+      <div className={`border-t ${isDark ? 'border-slate-700' : 'border-gray-100'}`} />
+
+      <nav className="py-1" role="none">
+        <button
+          onClick={() => go('profile')}
+          role="menuitem"
+          className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left ${itemHover}`}
+        >
+          <User className={`w-4 h-4 ${iconDefault}`} />
+          <span className={textDefault}>Profile Settings</span>
+        </button>
+
+        <button
+          onClick={handleUploadClick}
+          role="menuitem"
+          className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left ${itemHover}`}
+        >
+          <UploadCloud className={`w-4 h-4 ${iconDefault}`} />
+          <span className={textDefault}>Upload CV / Resume</span>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.doc,.docx"
+            className="hidden"
+            onChange={handleFile}
+          />
+        </button>
+
+        <button
+          onClick={() => go('skills')}
+          role="menuitem"
+          className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left ${itemHover}`}
+        >
+          <Briefcase className={`w-4 h-4 ${iconDefault}`} />
+          <span className={textDefault}>Skills & Experience</span>
+        </button>
+
+        <button
+          onClick={() => go('documents')}
+          role="menuitem"
+          className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left ${itemHover}`}
+        >
+          <FileText className={`w-4 h-4 ${iconDefault}`} />
+          <span className={textDefault}>My Documents</span>
+        </button>
+
+        <button
+          onClick={() => go('account')}
+          role="menuitem"
+          className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left ${itemHover}`}
+        >
+          <Settings className={`w-4 h-4 ${iconDefault}`} />
+          <span className={textDefault}>Account Settings</span>
+        </button>
+      </nav>
+
+      <div className={`border-t ${isDark ? 'border-slate-700' : 'border-gray-100'}`} />
+
+      <div className="px-4 py-3">
+        <button
+          onClick={() => { onSignOut(); onClose(); }}
+          className={`w-full flex items-center gap-3 text-sm px-3 py-2 rounded ${isDark ? 'hover:bg-slate-900' : 'hover:bg-red-50'}`}
+        >
+          <LogOut className="w-4 h-4 text-red-600" />
+          <span className="font-medium text-red-600">Sign out</span>
+        </button>
+      </div>
+    </div>
+  )
+}
