@@ -1,3 +1,4 @@
+// src/App.jsx
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 
@@ -18,14 +19,15 @@ import Login from './Components/Auth/Login';
 import Signup from './Components/Auth/Signup';
 
 import { DarkThemeProvider } from './Components/DarkThemeContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext'; // path: adjust if different
 
-export default function App() {
+function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, loading, logout } = useAuth();
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   // Track which sidebar is currently active (main or profile)
   const [activeSidebar, setActiveSidebar] = useState('main'); // 'main' | 'profile'
@@ -66,16 +68,23 @@ export default function App() {
     setMobileOpen(true);
   };
 
+  // Called by Login/Signup components after successful auth
   const handleLogin = () => {
-    setIsAuthenticated(true);
+    // AuthContext should already have user set; just navigate to home
     navigate('/');
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    setMobileOpen(false);
-    setActiveSidebar('main');
-    navigate('/');
+  const handleLogout = async () => {
+    // call auth logout to remove token & user
+    try {
+      await logout();
+    } catch (err) {
+      console.warn('Logout error (ignored):', err);
+    } finally {
+      setMobileOpen(false);
+      setActiveSidebar('main');
+      navigate('/login', { replace: true });
+    }
   };
 
   // Close mobile sidebar when the route changes
@@ -93,6 +102,20 @@ export default function App() {
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+
+  // While auth is checking (app startup), show a simple loading placeholder
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="mb-2">Checking session…</div>
+          <div className="loader w-8 h-8 border-4 border-teal-600 rounded-full animate-spin" />
+        </div>
+      </div>
+    );
+  }
+
+  const isAuthenticated = Boolean(user);
 
   return (
     <DarkThemeProvider>
@@ -117,7 +140,7 @@ export default function App() {
                 onClose={() => setMobileOpen(false)}
                 onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
                 onLogout={handleLogout}
-                user={{ firstName: 'John', lastName: 'Peterson', email: 'john.peterson@email.com' }}
+                user={user}
                 initialSection={profileSidebarSection}
               />
             )}
@@ -146,7 +169,7 @@ export default function App() {
                 <Route path="/notifications" element={<Notifications onMenuClick={handleMenuClick} />} />
                 <Route path="/analytics" element={<Analytics onMenuClick={handleMenuClick} />} />
                 <Route path="/settings" element={<Settings onMenuClick={handleMenuClick} />} />
-                <Route path="/profile" element={<Profile onMenuClick={handleMenuClick} />} /> {/* Full profile page route */}
+                <Route path="/profile" element={<Profile onMenuClick={handleMenuClick} />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </>
             )}
@@ -154,5 +177,14 @@ export default function App() {
         </div>
       </div>
     </DarkThemeProvider>
+  );
+}
+
+export default function App() {
+  // Wrap the whole app with AuthProvider so anything inside can use useAuth()
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

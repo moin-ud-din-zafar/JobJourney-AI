@@ -1,5 +1,4 @@
-// src/components/Auth/utils.js
-// For now this is a placeholder for actual  logic later
+// For now this is a placeholder for actual auth logic later
 
 export const fakeAuth = {
   login: (email, password) => Promise.resolve(true),

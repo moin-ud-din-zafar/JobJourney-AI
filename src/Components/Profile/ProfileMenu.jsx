@@ -1,117 +1,102 @@
-import React, { useRef } from 'react'
-import { User, UploadCloud, Briefcase, FileText, Settings, LogOut } from 'lucide-react'
-import { useDarkTheme } from '../DarkThemeContext'
-import { useNavigate } from 'react-router-dom'
+// src/Components/Profile/ProfileMenu.jsx
+import React, { useRef, useEffect, useState } from 'react';
+import { User, UploadCloud, Briefcase, FileText, Settings, LogOut } from 'lucide-react';
+import { useDarkTheme } from '../DarkThemeContext';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 
-export default function ProfileMenu({
-  user = {},
-  onClose = () => {},
-  onNavigate = null,
-  onSignOut = () => {},
-  onUpload = null,
-}) {
-  const { isDark } = useDarkTheme()
-  const fileInputRef = useRef(null)
-  const navigate = useNavigate()
+export default function ProfileMenu({ onClose = () => {}, onNavigate = null, onUpload = null }) {
+  const { isDark } = useDarkTheme();
+  const fileInputRef = useRef(null);
+  const navigate = useNavigate();
+  const auth = useAuth();
 
-  const panelBg = isDark ? 'bg-slate-800 border-slate-700 text-gray-100' : 'bg-white border-gray-100 text-gray-900'
-  const itemHover = isDark ? 'hover:bg-slate-900' : 'hover:bg-gray-50'
-  const iconDefault = isDark ? 'text-gray-300' : 'text-gray-600'
-  const textDefault = isDark ? 'text-gray-100' : 'text-gray-900'
-  const subText = isDark ? 'text-gray-300' : 'text-gray-500'
+  const [loadingUser, setLoadingUser] = useState(true);
 
-  const fullName = user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : (user.name || 'John Peterson')
+  // keep local copy of user for display (reactive to context)
+  const user = auth?.user ?? null;
+
+  useEffect(() => {
+    // small spinner state while auth.loading might still be true
+    setLoadingUser(false);
+  }, [auth?.loading]);
+
+  const fullName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : (auth.loading ? 'Loading...' : 'Guest');
+
+  const panelBg = isDark ? 'bg-slate-800 border-slate-700 text-gray-100' : 'bg-white border-gray-100 text-gray-900';
+  const itemHover = isDark ? 'hover:bg-slate-900' : 'hover:bg-gray-50';
+  const iconDefault = isDark ? 'text-gray-300' : 'text-gray-600';
+  const textDefault = isDark ? 'text-gray-100' : 'text-gray-900';
+  const subText = isDark ? 'text-gray-300' : 'text-gray-500';
 
   const go = (id) => {
-    onClose()
+    onClose();
     if (typeof onNavigate === 'function') {
-      onNavigate(id === 'profile' ? '' : id)
-      return
+      onNavigate(id === 'profile' ? '' : id);
+      return;
     }
-
-    if (id === 'profile') {
-      navigate('/profile')
-    } else {
-      navigate(`/profile?section=${encodeURIComponent(id)}`)
-    }
-  }
+    if (id === 'profile') navigate('/profile');
+    else navigate(`/profile?section=${encodeURIComponent(id)}`);
+  };
 
   const handleUploadClick = () => {
-    if (fileInputRef.current) fileInputRef.current.click()
-  }
+    if (fileInputRef.current) fileInputRef.current.click();
+  };
 
   const handleFile = (e) => {
-    const f = e.target.files?.[0]
-    if (!f) return
-    if (typeof onUpload === 'function') {
-      onUpload(f)
-      onClose()
-      return
+    const f = e.target.files?.[0];
+    if (!f) return;
+    onClose();
+    navigate('/profile?section=upload');
+  };
+
+  // Sign out: call auth.logout(), which will redirect to /login immediately
+  const [signingOut, setSigningOut] = useState(false);
+  const handleSignOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      await auth.logout({ redirect: true }); // redirect true will navigate to /login
+    } catch (err) {
+      console.error('Logout error', err);
+    } finally {
+      setSigningOut(false);
+      onClose();
     }
-    onClose()
-    if (typeof onNavigate === 'function') onNavigate('upload')
-    else navigate('/profile?section=upload')
-  }
+  };
 
   return (
     <div role="menu" aria-label="Profile menu" className={`w-72 rounded-lg shadow-lg overflow-hidden border ${panelBg}`}>
       <div className="px-4 py-3">
         <div className={`text-sm font-semibold ${textDefault}`}>{fullName}</div>
-        <div className={`text-xs ${subText} mt-0.5`}>{user.email || 'john.peterson@email.com'}</div>
+        <div className={`text-xs ${subText} mt-0.5`}>{user?.email ?? (auth.loading ? 'Loading...' : 'guest@example.com')}</div>
       </div>
 
       <div className={`border-t ${isDark ? 'border-slate-700' : 'border-gray-100'}`} />
 
       <nav className="py-1" role="none">
-        <button
-          onClick={() => go('profile')}
-          role="menuitem"
-          className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left ${itemHover}`}
-        >
+        <button onClick={() => go('profile')} role="menuitem" className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left ${itemHover}`}>
           <User className={`w-4 h-4 ${iconDefault}`} />
           <span className={textDefault}>Profile Settings</span>
         </button>
 
-        <button
-          onClick={handleUploadClick}
-          role="menuitem"
-          className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left ${itemHover}`}
-        >
+        <button onClick={handleUploadClick} role="menuitem" className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left ${itemHover}`}>
           <UploadCloud className={`w-4 h-4 ${iconDefault}`} />
           <span className={textDefault}>Upload CV / Resume</span>
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.doc,.docx"
-            className="hidden"
-            onChange={handleFile}
-          />
+          <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleFile} />
         </button>
 
-        <button
-          onClick={() => go('skills')}
-          role="menuitem"
-          className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left ${itemHover}`}
-        >
+        <button onClick={() => go('skills')} role="menuitem" className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left ${itemHover}`}>
           <Briefcase className={`w-4 h-4 ${iconDefault}`} />
           <span className={textDefault}>Skills & Experience</span>
         </button>
 
-        <button
-          onClick={() => go('documents')}
-          role="menuitem"
-          className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left ${itemHover}`}
-        >
+        <button onClick={() => go('documents')} role="menuitem" className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left ${itemHover}`}>
           <FileText className={`w-4 h-4 ${iconDefault}`} />
           <span className={textDefault}>My Documents</span>
         </button>
 
-        <button
-          onClick={() => go('account')}
-          role="menuitem"
-          className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left ${itemHover}`}
-        >
+        <button onClick={() => go('account')} role="menuitem" className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left ${itemHover}`}>
           <Settings className={`w-4 h-4 ${iconDefault}`} />
           <span className={textDefault}>Account Settings</span>
         </button>
@@ -121,13 +106,14 @@ export default function ProfileMenu({
 
       <div className="px-4 py-3">
         <button
-          onClick={() => { onSignOut(); onClose(); }}
-          className={`w-full flex items-center gap-3 text-sm px-3 py-2 rounded ${isDark ? 'hover:bg-slate-900' : 'hover:bg-red-50'}`}
+          onClick={handleSignOut}
+          disabled={signingOut}
+          className={`w-full flex items-center gap-3 text-sm px-3 py-2 rounded ${isDark ? 'hover:bg-slate-900' : 'hover:bg-red-50'} ${signingOut ? 'opacity-70 cursor-wait' : ''}`}
         >
           <LogOut className="w-4 h-4 text-red-600" />
-          <span className="font-medium text-red-600">Sign out</span>
+          <span className="font-medium text-red-600">{signingOut ? 'Signing out…' : 'Sign out'}</span>
         </button>
       </div>
     </div>
-  )
+  );
 }
