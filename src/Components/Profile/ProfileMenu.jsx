@@ -1,13 +1,12 @@
 // src/Components/Profile/ProfileMenu.jsx
-import React, { useRef, useEffect, useState } from 'react';
-import { User, UploadCloud, Briefcase, FileText, Settings, LogOut } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { User, UploadCloud, Briefcase, LogOut } from 'lucide-react';
 import { useDarkTheme } from '../DarkThemeContext';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
-export default function ProfileMenu({ onClose = () => {}, onNavigate = null, onUpload = null }) {
+export default function ProfileMenu({ onClose = () => {}, onNavigate = null }) {
   const { isDark } = useDarkTheme();
-  const fileInputRef = useRef(null);
   const navigate = useNavigate();
   const auth = useAuth();
 
@@ -39,17 +38,6 @@ export default function ProfileMenu({ onClose = () => {}, onNavigate = null, onU
     else navigate(`/profile?section=${encodeURIComponent(id)}`);
   };
 
-  const handleUploadClick = () => {
-    if (fileInputRef.current) fileInputRef.current.click();
-  };
-
-  const handleFile = (e) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    onClose();
-    navigate('/profile?section=upload');
-  };
-
   // Sign out: call auth.logout(), which will redirect to /login immediately
   const [signingOut, setSigningOut] = useState(false);
   const handleSignOut = async () => {
@@ -75,30 +63,32 @@ export default function ProfileMenu({ onClose = () => {}, onNavigate = null, onU
       <div className={`border-t ${isDark ? 'border-slate-700' : 'border-gray-100'}`} />
 
       <nav className="py-1" role="none">
-        <button onClick={() => go('profile')} role="menuitem" className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left ${itemHover}`}>
+        <button
+          onClick={() => go('profile')}
+          role="menuitem"
+          className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left ${itemHover}`}
+        >
           <User className={`w-4 h-4 ${iconDefault}`} />
           <span className={textDefault}>Profile Settings</span>
         </button>
 
-        <button onClick={handleUploadClick} role="menuitem" className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left ${itemHover}`}>
+        {/* NAVIGATE to Upload UI first (no immediate file picker/upload) */}
+        <button
+          onClick={() => go('upload')}
+          role="menuitem"
+          className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left ${itemHover}`}
+        >
           <UploadCloud className={`w-4 h-4 ${iconDefault}`} />
           <span className={textDefault}>Upload CV / Resume</span>
-          <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleFile} />
         </button>
 
-        <button onClick={() => go('skills')} role="menuitem" className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left ${itemHover}`}>
+        <button
+          onClick={() => go('skills')}
+          role="menuitem"
+          className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left ${itemHover}`}
+        >
           <Briefcase className={`w-4 h-4 ${iconDefault}`} />
           <span className={textDefault}>Skills & Experience</span>
-        </button>
-
-        <button onClick={() => go('documents')} role="menuitem" className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left ${itemHover}`}>
-          <FileText className={`w-4 h-4 ${iconDefault}`} />
-          <span className={textDefault}>My Documents</span>
-        </button>
-
-        <button onClick={() => go('account')} role="menuitem" className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left ${itemHover}`}>
-          <Settings className={`w-4 h-4 ${iconDefault}`} />
-          <span className={textDefault}>Account Settings</span>
         </button>
       </nav>
 

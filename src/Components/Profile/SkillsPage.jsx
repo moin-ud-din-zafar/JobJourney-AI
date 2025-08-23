@@ -1,13 +1,16 @@
-import React, { useState } from "react";
+// src/Components/Profile/SkillsPage.jsx
+import React, { useEffect, useState } from "react";
 import { useDarkTheme } from "../DarkThemeContext";
+import * as api from '../../api';
 
 /**
- * SkillsPage — labels placed above inputs (visible)
- * - Keeps logic unchanged
- * - Outer padding kept as p-6
- * - Delete buttons remain below content
+ * SkillsPage — full component
+ * - Loads profile on mount and seeds UI from server
+ * - Keeps your original UI/markup and styles exactly
+ * - Sanitizes arrays before saving and refreshes UI from server response
  */
 
+/* --- defaults / samples (kept identical to your original) --- */
 const defaultSkills = {
   technical: ["React", "TypeScript", "Node.js", "Python", "AWS", "Docker"],
   soft: ["Leadership", "Communication", "Problem Solving", "Team Management"],
@@ -49,11 +52,47 @@ const sampleCerts = [
   },
 ];
 
+/* --- helpers --- */
 function uniqId(prefix = "") {
   return `${prefix}${Date.now().toString(36)}${Math.floor(Math.random() * 1000)}`;
 }
 
-/* small card wrapper for consistent style */
+/* When loading server-side subdocs, attach a stable local id for rendering */
+function withLocalIds(arr = [], prefix = "") {
+  if (!Array.isArray(arr)) return [];
+  return arr.map(item => {
+    if (!item || typeof item !== 'object') return item;
+    return { ...item, id: item._id ? String(item._id) : (item.id || uniqId(prefix)) };
+  });
+}
+
+/* remove UI-only ids and drop empty objects before saving */
+function stripIdsAndFilterEmpty(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .map((item) => {
+      const { id, _id, ...rest } = item || {};
+      return rest;
+    })
+    .filter((obj) => {
+      return Object.values(obj).some((v) => {
+        if (v === null || v === undefined) return false;
+        if (typeof v === "string") return v.trim() !== "";
+        if (Array.isArray(v)) return v.length > 0;
+        if (typeof v === "object") {
+          return Object.values(v).some((x) => {
+            if (x === null || x === undefined) return false;
+            if (typeof x === "string") return x.trim() !== "";
+            if (Array.isArray(x)) return x.length > 0;
+            return true;
+          });
+        }
+        return true;
+      });
+    });
+}
+
+/* small card wrapper for consistent style (kept identical) */
 function Panel({ title, children, right }) {
   return (
     <section className="rounded-lg border p-4 bg-white/80 dark:bg-gray-800/80 dark:border-gray-700 border-gray-200">
@@ -66,20 +105,60 @@ function Panel({ title, children, right }) {
   );
 }
 
+/* --- component --- */
 export default function SkillsPage() {
   const { isDark } = useDarkTheme();
 
-  // skills
+  // keep your original defaults but we will replace them after loading
   const [skills, setSkills] = useState(defaultSkills);
   const [skillCategory, setSkillCategory] = useState("technical");
   const [skillInput, setSkillInput] = useState("");
 
-  // sections
+  // sections (start from samples to keep design identical until server loads)
   const [experiences, setExperiences] = useState(sampleExperience);
   const [educations, setEducations] = useState(sampleEducation);
   const [certificates, setCertificates] = useState(sampleCerts);
 
-  /* --- Skills handlers --- */
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  // Load profile on mount and seed local state from server values (if any)
+  useEffect(() => {
+    let mounted = true;
+    async function loadProfile() {
+      setLoading(true);
+      try {
+        const res = await api.getProfile();
+        const profile = res?.profile ?? null;
+        if (!mounted) return;
+        if (profile) {
+          setSkills({
+            technical: (profile.skills && Array.isArray(profile.skills.technical)) ? profile.skills.technical : defaultSkills.technical,
+            soft: (profile.skills && Array.isArray(profile.skills.soft)) ? profile.skills.soft : defaultSkills.soft,
+            languages: (profile.skills && Array.isArray(profile.skills.languages)) ? profile.skills.languages : defaultSkills.languages,
+          });
+          setExperiences(withLocalIds(profile.experiences || [], 'exp'));
+          setEducations(withLocalIds(profile.educations || [], 'edu'));
+          setCertificates(withLocalIds(profile.certificates || [], 'cert'));
+        } else {
+          // no profile yet -> leave defaults (samples)
+          setSkills(defaultSkills);
+          setExperiences(sampleExperience);
+          setEducations(sampleEducation);
+          setCertificates(sampleCerts);
+        }
+      } catch (err) {
+        console.error('Failed to load profile', err);
+        // keep current UI defaults if load fails
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+    loadProfile();
+    return () => { mounted = false; };
+  }, []);
+
+  /* --- Skills handlers (unchanged behavior) --- */
   function addSkill() {
     const value = skillInput.trim();
     if (!value) return;
@@ -170,17 +249,48 @@ export default function SkillsPage() {
     setCertificates((prev) => prev.filter((c) => c.id !== id));
   }
 
-  function handleSave() {
-    const payload = { skills, experiences, educations, certificates };
-    console.log("Saving Skills & Experience:", payload);
-    alert("Saved (console.log). Hook this up to your API to persist changes.");
+  /* --- Save handler (wired to backend) --- */
+  async function handleSave() {
+    const payload = {
+      skills,
+      experiences: stripIdsAndFilterEmpty(experiences),
+      educations: stripIdsAndFilterEmpty(educations),
+      certificates: stripIdsAndFilterEmpty(certificates),
+    };
+
+    console.log("UPDATING profile payload →", payload);
+
+    setSaving(true);
+    try {
+      const res = await api.updateProfile(payload);
+      console.log("Saved Skills & Experience (server response):", res);
+      alert("Saved to server.");
+
+      // Refresh local state from returned profile to keep ids and DB canonical values
+      const profile = res?.profile;
+      if (profile) {
+        setSkills({
+          technical: (profile.skills && Array.isArray(profile.skills.technical)) ? profile.skills.technical : defaultSkills.technical,
+          soft: (profile.skills && Array.isArray(profile.skills.soft)) ? profile.skills.soft : defaultSkills.soft,
+          languages: (profile.skills && Array.isArray(profile.skills.languages)) ? profile.skills.languages : defaultSkills.languages,
+        });
+        setExperiences(withLocalIds(profile.experiences || [], 'exp'));
+        setEducations(withLocalIds(profile.educations || [], 'edu'));
+        setCertificates(withLocalIds(profile.certificates || [], 'cert'));
+      }
+    } catch (err) {
+      console.error("Save failed", err);
+      alert(err?.response?.data?.error || "Save failed");
+    } finally {
+      setSaving(false);
+    }
   }
 
   const baseText = isDark ? "text-gray-100" : "text-gray-900";
   const mutedText = isDark ? "text-gray-400" : "text-gray-500";
 
+  /* --- UI (exactly your original layout / markup) --- */
   return (
-    // outer padding per your reference
     <div className={`p-6 space-y-6 min-h-screen ${isDark ? "bg-gray-900" : "bg-gray-50"}`}>
       <div>
         <h2 className={`text-2xl font-semibold ${baseText}`}>Skills & Experience</h2>
@@ -199,7 +309,6 @@ export default function SkillsPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* controls */}
           <div className="md:col-span-1 space-y-3">
-            {/* Label above select */}
             <div>
               <label htmlFor="skill-category" className="text-xs mb-1 block text-gray-700 dark:text-gray-300">
                 Category
@@ -217,7 +326,6 @@ export default function SkillsPage() {
               </select>
             </div>
 
-            {/* Label above input */}
             <div>
               <label htmlFor="skill-input" className="text-xs mb-1 block text-gray-700 dark:text-gray-300">
                 New skill
@@ -255,10 +363,10 @@ export default function SkillsPage() {
               <div key={section.key}>
                 <h4 className={`text-sm font-medium ${baseText} mb-2`}>{section.title}</h4>
                 <div className="flex flex-wrap gap-2 items-center">
-                  {skills[section.key].length === 0 && (
+                  {(!skills || !skills[section.key] || skills[section.key].length === 0) && (
                     <div className={`text-xs ${mutedText}`}>No {section.title.toLowerCase()} yet.</div>
                   )}
-                  {skills[section.key].map((s) => (
+                  {(skills && skills[section.key] || []).map((s) => (
                     <div
                       key={s}
                       className="flex items-center gap-2 px-3 py-1 border rounded-full text-sm whitespace-nowrap border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-700 min-w-0"
@@ -336,7 +444,6 @@ export default function SkillsPage() {
                       />
                     </div>
 
-                    {/* Dates + current — label above each field */}
                     <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div>
                         <label htmlFor={startId} className="text-xs mb-1 block text-gray-700 dark:text-gray-300">
@@ -373,7 +480,7 @@ export default function SkillsPage() {
                           <input
                             id={currentId}
                             type="checkbox"
-                            checked={exp.current}
+                            checked={!!exp.current}
                             onChange={(e) => updateExperience(exp.id, "current", e.target.checked)}
                             className="w-4 h-4"
                           />
@@ -383,7 +490,6 @@ export default function SkillsPage() {
                     </div>
                   </div>
 
-                  {/* Right column spacer */}
                   <div className="w-full lg:w-56 flex-shrink-0 flex flex-col">
                     <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">Brief description</div>
                   </div>
@@ -402,7 +508,6 @@ export default function SkillsPage() {
                   />
                 </div>
 
-                {/* Delete moved here (below content) */}
                 <div className="mt-3 flex justify-end">
                   <button onClick={() => removeExperience(exp.id)} className="text-sm text-red-600 hover:underline">
                     Delete
@@ -525,7 +630,6 @@ export default function SkillsPage() {
                     </div>
                   </div>
 
-                  {/* Delete moved below content */}
                   <div className="w-full lg:w-40 flex-shrink-0 flex flex-col justify-end">
                     <div className="mt-3 lg:mt-0 flex justify-end">
                       <button onClick={() => removeEducation(edu.id)} className="text-red-600 text-sm">
@@ -637,7 +741,6 @@ export default function SkillsPage() {
                     </div>
                   </div>
 
-                  {/* Delete moved below content */}
                   <div className="w-full lg:w-40 flex-shrink-0 flex flex-col justify-end">
                     <div className="mt-3 lg:mt-0 flex justify-end">
                       <button onClick={() => removeCertificate(c.id)} className="text-red-600 text-sm">
@@ -656,10 +759,11 @@ export default function SkillsPage() {
       <div className="flex justify-end">
         <button
           onClick={handleSave}
-          className="px-5 py-2 rounded-md bg-teal-600 text-white text-sm hover:brightness-105"
+          disabled={saving}
+          className={`px-5 py-2 rounded-md text-sm ${saving ? "bg-gray-400 text-white cursor-wait" : "bg-teal-600 text-white hover:brightness-105"}`}
           aria-label="Save Skills and Experience"
         >
-          Save Skills &amp; Experience
+          {saving ? "Saving…" : "Save Skills & Experience"}
         </button>
       </div>
     </div>

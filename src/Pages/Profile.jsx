@@ -1,7 +1,8 @@
+// src/Pages/Profile.jsx
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, X } from 'lucide-react';
 import { useDarkTheme } from '../Components/DarkThemeContext';
-import ProfileSettings from '../Components/Profile/ProfileSettings';  // Ensure correct import
+import ProfileSettings from '../Components/Profile/ProfileSettings';
 import UploadCV from '../Components/Profile/UploadCV';
 import SkillsPage from '../Components/Profile/SkillsPage';
 import DocumentsPage from '../Components/Profile/DocumentsPage';
@@ -25,7 +26,7 @@ export default function ProfilePage({ onMenuClick }) {
   const [view, setView] = useState('menu'); // 'menu' | 'content'
   const [active, setActive] = useState('profile');
 
-  // page-level user; replace with auth/user store as needed
+  // sample page-level user; replace with auth/user store as needed
   const user = {
     firstName: 'John',
     lastName: 'Peterson',
@@ -37,7 +38,6 @@ export default function ProfilePage({ onMenuClick }) {
   const cardBg = isDark ? 'bg-slate-900 text-gray-100' : 'bg-white text-gray-900';
   const navBg = isDark ? 'bg-slate-800' : 'bg-gray-50';
 
-  // ensure body minHeight remains neutral (keeps layout stable)
   useEffect(() => {
     const prev = document.body.style.minHeight;
     document.body.style.minHeight = '0';
@@ -59,25 +59,14 @@ export default function ProfilePage({ onMenuClick }) {
     }
   }, [location.search]);
 
+  // When a menu item is clicked, open the corresponding content
   const openContent = (id) => {
     setActive(id);
     setView('content');
     const url = id === 'profile' ? '/profile' : `/profile?section=${encodeURIComponent(id)}`;
     navigate(url, { replace: true });
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    onMenuClick('profile', id);  // Ensure profile sidebar opens
-  };
-
-  const backToMenu = () => {
-    setView('menu');
-    setActive('profile');
-    navigate('/profile', { replace: true });
-    onMenuClick('main');
-  };
-
-  const handleClose = () => {
-    navigate('/'); 
-    onMenuClick('main');
+    // note: no profile sidebar to open anymore; we simply navigate
   };
 
   return (
@@ -93,42 +82,37 @@ export default function ProfilePage({ onMenuClick }) {
             </div>
 
             <div className="flex items-center gap-2">
-              {view === 'content' && active === 'profile' && (
-                <button
-                  onClick={backToMenu}
-                  className="inline-flex items-center gap-2 px-3 py-1 rounded border hover:bg-gray-50"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  Back
-                </button>
-              )}
-
-              <button
-                onClick={handleClose}
-                className="inline-flex items-center gap-2 px-3 py-1 rounded border hover:bg-gray-50"
-              >
-                <X className="w-4 h-4" />
-                Close
-              </button>
+              {/* NO Close button as requested; navigation happens when user selects another menu item. */}
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-            {/* Right content */}
             <section className={`md:col-span-12 p-6 rounded-lg ${isDark ? 'bg-slate-900/60' : 'bg-white/5'}`}>
               {view === 'menu' && (
                 <div className="p-6 text-gray-400">
                   <h3 className="text-lg font-medium">Select an item to start editing</h3>
-                  <p className="mt-2 text-sm">Use the left menu to choose which profile area you'd like to edit. Each section has a Back option to return to this menu.</p>
+                  <p className="mt-2 text-sm">Click a profile option to open it. You can switch between sections directly by selecting another option.</p>
+
+                  <div className="mt-4 space-y-2">
+                    {MENU.map((m) => (
+                      <button
+                        key={m.id}
+                        onClick={() => openContent(m.id)}
+                        className="w-full text-left px-4 py-2 rounded border hover:bg-gray-50 dark:hover:bg-slate-800"
+                      >
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 
               {view === 'content' && active === 'profile' && (
-                <ProfileSettings user={user} onClose={backToMenu} embedded />
+                <ProfileSettings user={user} embedded />
               )}
 
               {view === 'content' && active === 'upload' && (
-                <UploadCV onDone={() => {}} />
+                <UploadCV />
               )}
 
               {view === 'content' && active === 'skills' && (
