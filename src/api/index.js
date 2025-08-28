@@ -107,27 +107,16 @@ export async function updateProfile(payload) {
 
 /**
  * uploadDocument(file, docType?, onProgress?)
- * - file: File
- * - docType: optional string 'resume' | 'cover-letter' | 'other'
- * - onProgress: optional callback(percent:number)
- * returns { doc, profile }
  */
 export async function uploadDocument(file, docType, onProgress) {
-  // allow the function to be called as uploadDocument(file, onProgress)
   let actualDocType = typeof docType === 'string' ? docType : '';
   let actualOnProgress = typeof docType === 'function' ? docType : onProgress;
-
-  // If caller provided docType and progress as second and third args, actualOnProgress will be onProgress
-  if (typeof docType === 'function') {
-    actualDocType = '';
-    actualOnProgress = docType;
-  }
+  if (typeof docType === 'function') { actualDocType = ''; actualOnProgress = docType; }
 
   const form = new FormData();
   form.append('file', file);
   if (actualDocType) form.append('docType', actualDocType);
 
-  // IMPORTANT: DO NOT set 'Content-Type' header - let the browser set the correct multipart boundary
   const res = await client.post('/profile/document', form, {
     onUploadProgress: (evt) => {
       if (typeof actualOnProgress === 'function' && evt && evt.total) {
@@ -142,7 +131,6 @@ export async function uploadDocument(file, docType, onProgress) {
 
 /**
  * Download a document protected by auth. Returns { blob, filename, headers }
- * The caller should create an object URL / trigger download.
  */
 export async function downloadDocument(docId) {
   const url = `/profile/document/${encodeURIComponent(docId)}/download`;
@@ -155,6 +143,32 @@ export async function downloadDocument(docId) {
 export async function deleteDocument(docId) {
   const res = await client.delete(`/profile/document/${encodeURIComponent(docId)}`);
   return res.data; // expects { profile }
+}
+
+// -------- Jobs / Applications API --------
+export async function createJob(payload) {
+  const res = await client.post('/jobs', payload);
+  return res.data; // { message, job }
+}
+
+export async function getJobs() {
+  const res = await client.get('/jobs');
+  return res.data; // { jobs }
+}
+
+export async function getJob(jobId) {
+  const res = await client.get(`/jobs/${encodeURIComponent(jobId)}`);
+  return res.data; // { job }
+}
+
+export async function updateJob(jobId, payload) {
+  const res = await client.put(`/jobs/${encodeURIComponent(jobId)}`, payload);
+  return res.data; // { message, job }
+}
+
+export async function deleteJob(jobId) {
+  const res = await client.delete(`/jobs/${encodeURIComponent(jobId)}`);
+  return res.data; // { message, job }
 }
 
 export default client;

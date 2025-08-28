@@ -1,30 +1,29 @@
-import React from 'react'
-import { MoreHorizontal } from 'lucide-react'
-import { useDarkTheme } from '../DarkThemeContext' // same context used by Header/Sidebar
+// src/components/CompactCard.jsx
+import React from 'react';
+import { MoreHorizontal } from 'lucide-react';
+import { useDarkTheme } from '../DarkThemeContext';
 
-// avatar styling helper based on status (we'll pick final strings depending on theme)
 const avatarClassesByStatusLight = {
   applied: 'bg-blue-500 text-white ring-2 ring-white',
   interviewing: 'bg-white text-gray-700 border border-gray-200',
   offers: 'bg-green-500 text-white',
   rejected: 'bg-red-500 text-white',
-}
+};
 const avatarClassesByStatusDark = {
   applied: 'bg-blue-500 text-white ring-2 ring-black',
   interviewing: 'bg-slate-800 text-gray-200 border border-slate-700',
   offers: 'bg-green-500 text-white',
   rejected: 'bg-red-500 text-white',
-}
+};
 
 export default function CompactCard({ app }) {
-  const { isDark } = useDarkTheme()
-  const initials = app.company.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
-  const avatarMap = isDark ? avatarClassesByStatusDark : avatarClassesByStatusLight
-  const avatarClass = avatarMap[app.status] || (isDark ? 'bg-slate-700 text-gray-200' : 'bg-gray-200 text-gray-700')
+  const { isDark } = useDarkTheme();
+  const initials = (app.company || '').split(' ').map(w => w[0] || '').join('').slice(0, 2).toUpperCase();
+  const avatarMap = isDark ? avatarClassesByStatusDark : avatarClassesByStatusLight;
+  const avatarClass = avatarMap[app.status] || (isDark ? 'bg-slate-700 text-gray-200' : 'bg-gray-200 text-gray-700');
 
-  // card background + text adapt to theme via the same s object in parent; we keep this minimal here
-  const cardBg = isDark ? 'bg-slate-900 text-gray-200' : 'bg-white text-gray-900'
-  const metaBg = isDark ? 'bg-slate-800' : 'bg-gray-100'
+  const cardBg = isDark ? 'bg-slate-900 text-gray-200' : 'bg-white text-gray-900';
+  const metaBg = isDark ? 'bg-slate-800' : 'bg-gray-100';
 
   return (
     <div className={`${cardBg} rounded-lg p-4 shadow-sm flex flex-col min-h-[140px] border border-transparent hover:shadow-md transition-shadow`}>
@@ -72,10 +71,10 @@ export default function CompactCard({ app }) {
                 ? 'bg-blue-500'
                 : 'bg-sky-400'
             }`}
-            style={{ width: `${Math.max(6, app.progress)}%` }}
+            style={{ width: `${Math.max(6, Number(app.progress || 0))}%` }}
           />
         </div>
       </div>
     </div>
-  )
+  );
 }
